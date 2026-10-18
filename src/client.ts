@@ -1,4 +1,4 @@
-import { NativeModules, DevSettings } from 'react-native';
+import { NativeModules } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const UPDATE_ID_KEY = 'sphegatti_update_id';
@@ -53,10 +53,10 @@ export async function checkForUpdate(opts: CheckForUpdateOptions): Promise<Updat
       return { status: 'error', message: 'OtaModule not found. Did you run npx ota init?' };
     }
 
-    // Save before reload so the new launch sees the updated ID and skips re-downloading
+    // Save before download — if the process is killed mid-flight, next launch won't retry
     await AsyncStorage.setItem(UPDATE_ID_KEY, data.updateId!);
     await OtaModule.downloadAndActivate(data.bundleUrl!);
-    DevSettings.reload();
+    // Native module restarts the app — code below this won't run
     return { status: 'updated', updateId: data.updateId! };
   } catch (e) {
     return { status: 'error', message: e instanceof Error ? e.message : String(e) };
