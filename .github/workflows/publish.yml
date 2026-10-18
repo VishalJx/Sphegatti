@@ -24,6 +24,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Align package version with release tag
+        run: npm pkg set version="${GITHUB_REF_NAME#v}"
+
       - name: Publish
         run: npm publish --access public --ignore-scripts
         env:
