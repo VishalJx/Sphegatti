@@ -89,13 +89,14 @@ function tryWireAndroid(cwd: string): boolean {
     console.log("  OtaPackage.kt already exists, skipped.");
   }
 
-  // Patch MainApplication.kt
+  // Patch MainApplication.kt — step 1: register OtaPackage
+  let mainAppWorking = mainAppSrc;
   if (mainAppSrc.includes("OtaPackage()")) {
     console.log("  OtaPackage already registered in MainApplication.kt, skipped.");
   } else {
     const patched = mainAppSrc.replace(
-      /PackageList\(this\)\.packages\.apply\s*\{/,
-      "PackageList(this).packages.apply {\n          add(OtaPackage())"
+      /PackageList\(this\)\.packages(?:\.apply\s*\{)?/,
+      "PackageList(this).packages.apply {\n          add(OtaPackage())\n        "
     );
 
     if (patched === mainAppSrc) {
@@ -104,16 +105,58 @@ function tryWireAndroid(cwd: string): boolean {
         "     PackageList(this).packages.apply { add(OtaPackage()) }"
       );
     } else {
-      // Ensure OtaPackage import is present — insert before the first existing import
-      const withImport = patched.includes("import")
-        ? patched.replace(
-            /^(import )/m,
-            `import ${packageName}.OtaPackage\n$1`
-          )
-        : patched;
-      fs.writeFileSync(mainAppPath, withImport);
+      mainAppWorking = patched;
       console.log("✓ Registered OtaPackage in MainApplication.kt");
     }
+  }
+
+  // Patch MainApplication.kt — step 2: wire jsBundleFilePath for OTA bundle loading
+  if (mainAppWorking.includes("jsBundleFilePath")) {
+    console.log("  jsBundleFilePath already present in MainApplication.kt, skipped.");
+  } else {
+    // Replace `get() = getDefaultReactHost(...)` with a `by lazy` block that reads SharedPreferences
+    const lazyBlock = `by lazy {
+    val prefs = getSharedPreferences("sphegatti_ota", android.content.Context.MODE_PRIVATE)
+    val savedPath = prefs.getString("bundle_path", null)
+    val otaBundlePath = if (savedPath != null && java.io.File(savedPath).exists()) savedPath else null
+    getDefaultReactHost(
+      context = applicationContext,
+      packageList = PackageList(this).packages.apply { add(OtaPackage()) },
+      jsBundleFilePath = otaBundlePath,
+    )
+  }`;
+
+    // Try to replace `get() = getDefaultReactHost(applicationContext, PackageList(this).packages)`
+    const patchedLazy = mainAppWorking.replace(
+      /get\(\)\s*=\s*getDefaultReactHost\([^)]*\)/,
+      lazyBlock
+    );
+
+    // Also handle `by lazy { getDefaultReactHost(...) }` form (already lazy but no jsBundleFilePath)
+    const patchedExisting = patchedLazy === mainAppWorking
+      ? mainAppWorking.replace(
+          /by lazy \{\s*\n?\s*getDefaultReactHost\([^)]*\)\s*\n?\s*\}/,
+          lazyBlock
+        )
+      : patchedLazy;
+
+    if (patchedExisting === mainAppWorking) {
+      console.log(
+        "⚠ Could not auto-patch reactHost — add jsBundleFilePath manually.\n" +
+        "  See: https://sphegatti.com/docs#main-application"
+      );
+    } else {
+      mainAppWorking = patchedExisting;
+      console.log("✓ Patched reactHost to load OTA bundle via jsBundleFilePath");
+    }
+  }
+
+  if (mainAppWorking !== mainAppSrc) {
+    // Ensure OtaPackage import is present
+    const withImport = mainAppWorking.includes(`${packageName}.OtaPackage`)
+      ? mainAppWorking
+      : mainAppWorking.replace(/^(import )/m, `import ${packageName}.OtaPackage\n$1`);
+    fs.writeFileSync(mainAppPath, withImport);
   }
 
   console.log("");
@@ -156,7 +199,11 @@ function printManualInstructions() {
 function otaModuleContent(packageName: string): string {
   return `package ${packageName}
 
-import com.facebook.react.ReactApplication
+import android.content.Context
+import android.content.Intent
+import android.os.Handler
+import android.os.Looper
+import android.os.Process
 import com.facebook.react.bridge.*
 import com.facebook.react.module.annotations.ReactModule
 import java.io.File
@@ -203,11 +250,22 @@ class OtaModule(
                         tempFile.delete()
                         throw Exception("Could not save bundle")
                     }
-                    val host = context.applicationContext as ReactApplication
-                    val reactHost = host.reactHost
-                        ?: throw Exception("ReactHost is not available")
-                    reactHost.setBundleSource(bundleFile.absolutePath)
-                    promise.resolve("Bundle downloaded; activation requested")
+                    // Persist path so MainApplication picks it up on cold start
+                    context.getSharedPreferences("sphegatti_ota", Context.MODE_PRIVATE)
+                        .edit()
+                        .putString("bundle_path", bundleFile.absolutePath)
+                        .commit()
+                    promise.resolve("Bundle downloaded; restarting")
+                    // Kill and relaunch so the new process reads the saved bundle path
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        val launchIntent = context.packageManager
+                            .getLaunchIntentForPackage(context.packageName)
+                        if (launchIntent != null) {
+                            launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(launchIntent)
+                        }
+                        Process.killProcess(Process.myPid())
+                    }, 300)
                 } finally {
                     connection.disconnect()
                 }
