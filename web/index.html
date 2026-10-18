@@ -73,7 +73,7 @@
           <div class="step-num">1</div>
           <div>
             <h3>Install &amp; init</h3>
-            <p>Run <code>npm install sphegatti</code> then <code>npx ota init</code>. It automatically creates <code>OtaModule.kt</code>, <code>OtaPackage.kt</code>, and registers them in <code>MainApplication.kt</code> — no manual file editing needed.</p>
+            <p>Run <code>npm install sphegatti</code> then <code>npx ota init</code>. It automatically creates <code>OtaModule.kt</code>, <code>OtaPackage.kt</code>, and patches <code>MainApplication.kt</code> — no manual file editing needed. One <code>npx react-native run-android</code> to compile the native module, and you're done forever.</p>
           </div>
         </div>
         <div class="step">
@@ -86,15 +86,15 @@
         <div class="step">
           <div class="step-num">3</div>
           <div>
-            <h3>Publish an update</h3>
-            <p>Run <code>npx ota publish</code>. Metro bundles your JS, uploads it, and the release goes live in seconds.</p>
+            <h3>Add the client SDK</h3>
+            <p>Call <code>checkForUpdate({ appId: 'your-app' })</code> from <code>sphegatti/client</code> in a <code>useEffect</code> at startup. It handles fetching, downloading, and restarting automatically.</p>
           </div>
         </div>
         <div class="step">
           <div class="step-num">4</div>
           <div>
-            <h3>Users get it automatically</h3>
-            <p>The SDK checks for updates on every app launch and applies them silently in the background.</p>
+            <h3>Publish an update</h3>
+            <p>Run <code>npx ota publish</code>. Metro bundles your JS, uploads it, and the release goes live in seconds. Users get it on their next app open — the app restarts with the new JS automatically.</p>
           </div>
         </div>
       </div>
