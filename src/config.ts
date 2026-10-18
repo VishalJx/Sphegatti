@@ -18,11 +18,17 @@ export type S3StorageConfig = {
 
 export type OtaStorageConfig = LocalStorageConfig | S3StorageConfig;
 
+export type OtaPublishConfig = {
+  serverUrl: string;
+  apiKey: string;
+};
+
 export type OtaConfig = {
   appId: string;
   runtimeVersion: string;
   server?: { port?: number };
   storage?: OtaStorageConfig;
+  publish?: OtaPublishConfig;
 };
 
 export function loadConfig(cwd = process.cwd()): OtaConfig {

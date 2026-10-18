@@ -2,21 +2,29 @@ import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
 import { execSync } from "node:child_process";
-import crypto from "node:crypto";
 import { loadConfig } from "../config";
-import { createStorageConnector } from "../storage/factory";
-import type { Release } from "../storage/types";
 
 export type PublishOptions = {
   platform: string;
   channel: string;
   entryFile: string;
   runtimeVersion?: string;
+  apiKey?: string;
+  serverUrl?: string;
 };
 
 export async function publishCommand(options: PublishOptions) {
   const config = loadConfig();
-  const storage = createStorageConnector(config);
+
+  const serverUrl =
+    options.serverUrl ?? config.publish?.serverUrl ?? "https://sphegatti.onrender.com";
+  const apiKey = options.apiKey ?? config.publish?.apiKey ?? "";
+
+  if (!apiKey) {
+    throw new Error(
+      "API key is required. Set publish.apiKey in ota.config.js or pass --api-key <key>."
+    );
+  }
 
   const platform = options.platform;
   const channel = options.channel;
@@ -41,35 +49,36 @@ export async function publishCommand(options: PublishOptions) {
     );
 
     const content = fs.readFileSync(tmpBundle);
-    const sha256 = crypto.createHash("sha256").update(content).digest("hex");
-    const releaseId = `release-${Date.now()}`;
 
-    console.log(`\nUploading bundle (${(content.length / 1024).toFixed(1)} KB)...`);
-    const bundlePath = await storage.uploadBundle(releaseId, platform, content);
+    const params = new URLSearchParams({ appId, platform, channel, runtimeVersion });
+    const url = `${serverUrl}/releases/publish?${params}`;
 
-    const release: Release = {
-      id: releaseId,
-      appId,
-      platform,
-      runtimeVersion,
-      channel,
-      published: true,
-      createdAt: new Date().toISOString(),
-      bundlePath,
-    };
+    console.log(`\nUploading bundle (${(content.length / 1024).toFixed(1)} KB) to ${serverUrl}...`);
 
-    const existing = await storage.loadReleases();
-    await storage.saveReleases([...existing, release]);
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/octet-stream",
+        "x-api-key": apiKey,
+      },
+      body: content,
+    });
+
+    const data = (await res.json()) as { releaseId?: string; sha256?: string; error?: string };
+
+    if (!res.ok) {
+      throw new Error(data.error ?? `Server returned HTTP ${res.status}`);
+    }
 
     console.log("");
     console.log("─────────────────────────────────────────");
-    console.log(`Release ID : ${releaseId}`);
+    console.log(`Release ID : ${data.releaseId}`);
     console.log(`Platform   : ${platform}`);
     console.log(`Channel    : ${channel}`);
     console.log(`Runtime    : ${runtimeVersion}`);
-    console.log(`SHA-256    : ${sha256}`);
+    console.log(`SHA-256    : ${data.sha256}`);
     console.log("─────────────────────────────────────────");
-    console.log("Done. Run 'npx ota serve' to start the update server.");
+    console.log("Done. Update is live.");
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }

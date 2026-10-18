@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Push JavaScript updates to your React Native Android app instantly — no App Store review." />
+  <title>Sphegatti — OTA updates for React Native Android</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+  <nav>
+    <div class="nav-inner">
+      <span class="logo">Sphegatti</span>
+      <div class="nav-actions">
+        <button class="btn btn-ghost" id="loginBtn">Log in</button>
+        <button class="btn btn-primary" id="signupBtn">Get API key</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="badge">Android &middot; React Native</div>
+      <h1>Ship updates without<br>the App Store wait</h1>
+      <p class="subtitle">
+        Push JavaScript bundle updates to your React Native Android app instantly.
+        No store review. No user action required.
+      </p>
+      <div class="hero-cta">
+        <button class="btn btn-primary btn-lg" id="getStartedBtn">Get your API key</button>
+        <a href="#how" class="btn btn-ghost btn-lg">See how it works</a>
+      </div>
+      <div class="code-block">
+        <pre><code><span class="cmd">$</span> npm install sphegatti
+<span class="cmd">$</span> npx ota init
+<span class="cmd">$</span> npx ota publish --channel production</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="section section-alt" id="features">
+    <div class="section-inner">
+      <h2>Everything you need, nothing you don't</h2>
+      <div class="cards">
+        <div class="card">
+          <div class="card-icon">&#9889;</div>
+          <h3>Instant delivery</h3>
+          <p>Updates reach users on their next app open. No store review cycle to wait for.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">&#128274;</div>
+          <h3>Integrity verified</h3>
+          <p>Every bundle is SHA-256 hashed. Your app verifies the checksum before applying any update.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">&#128336;</div>
+          <h3>Channel based</h3>
+          <p>Separate production, staging, and dev channels. Target exactly who gets what update.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="section" id="how">
+    <div class="section-inner">
+      <h2>How it works</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div>
+            <h3>Install the package</h3>
+            <p>Add Sphegatti to your React Native project and wire up the native Android module once.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div>
+            <h3>Get your API key</h3>
+            <p>Sign up above and copy your key into <code>ota.config.js</code> — that's it for setup.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div>
+            <h3>Publish an update</h3>
+            <p>Run <code>npx ota publish</code>. Metro bundles your JS, uploads it, and the release goes live in seconds.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div>
+            <h3>Users get it automatically</h3>
+            <p>The SDK checks for updates on every app launch and applies them silently in the background.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-inner">
+      <span class="logo">Sphegatti</span>
+      <span class="footer-note">Android only &middot; Not open source &middot; Free to use</span>
+    </div>
+  </footer>
+
+  <!-- Auth modal -->
+  <div class="modal-overlay" id="modalOverlay" role="dialog" aria-modal="true" aria-label="Sign in or create account">
+    <div class="modal">
+      <button class="modal-close" id="modalClose" aria-label="Close">&times;</button>
+      <div class="modal-tabs" role="tablist">
+        <button class="tab active" id="tabLogin" role="tab">Log in</button>
+        <button class="tab" id="tabSignup" role="tab">Sign up</button>
+      </div>
+      <form id="authForm" novalidate autocomplete="on">
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" required />
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" autocomplete="current-password" required />
+        </div>
+        <p class="error-msg" id="errorMsg" role="alert" aria-live="polite"></p>
+        <button type="submit" class="btn btn-primary btn-full" id="submitBtn">Log in</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

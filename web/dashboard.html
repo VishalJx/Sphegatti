@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Sphegatti</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body class="dashboard-page">
+
+  <nav>
+    <div class="nav-inner">
+      <a href="/" class="logo">Sphegatti</a>
+      <div class="nav-actions">
+        <span class="user-email" id="userEmail"></span>
+        <button class="btn btn-ghost btn-sm" id="logoutBtn">Log out</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="dashboard">
+    <div class="dashboard-inner">
+      <h1>Your API Key</h1>
+      <p class="subtitle">Use this key to publish OTA updates from your project.</p>
+
+      <div class="apikey-card">
+        <div class="apikey-label">API Key</div>
+        <div class="apikey-row">
+          <code class="apikey-value" id="apikeyDisplay"></code>
+          <button class="btn btn-ghost btn-sm" id="revealBtn">Reveal</button>
+          <button class="btn btn-primary btn-sm" id="copyBtn">Copy</button>
+        </div>
+      </div>
+
+      <div class="setup-guide">
+        <h2>Quick setup</h2>
+
+        <div class="step-code">
+          <div class="step-label">1. Install</div>
+          <pre><code>npm install sphegatti</code></pre>
+        </div>
+
+        <div class="step-code">
+          <div class="step-label">2. Create <code>ota.config.js</code> (or run <code>npx ota init</code>)</div>
+          <pre><code>module.exports = {
+  appId: 'your-app',
+  runtimeVersion: '1',
+  publish: {
+    serverUrl: 'https://sphegatti.onrender.com',
+    apiKey: '<span id="inlineKey" class="highlight-key">YOUR_API_KEY</span>',
+  },
+};</code></pre>
+        </div>
+
+        <div class="step-code">
+          <div class="step-label">3. Publish an update</div>
+          <pre><code>npx ota publish --platform android --channel production</code></pre>
+        </div>
+
+        <div class="step-code">
+          <div class="step-label">4. Check for updates in your app (React Native)</div>
+          <pre><code>import { NativeModules } from 'react-native';
+const { OtaModule } = NativeModules;
+
+const res = await fetch(
+  'https://sphegatti.onrender.com/updates/check?' +
+  new URLSearchParams({ appId, platform, runtimeVersion, channel, currentUpdateId })
+);
+const { updateAvailable, bundleUrl } = await res.json();
+if (updateAvailable) await OtaModule.downloadAndActivate(bundleUrl);</code></pre>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/dashboard.js"></script>
+</body>
+</html>

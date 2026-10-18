@@ -8,6 +8,9 @@ node_modules/
 /storage/
 /ota-storage/
 
+# user accounts + API keys — never commit
+/users.json
+
 # environment secrets
 .env
 .env.*

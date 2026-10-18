@@ -18,13 +18,26 @@ program
 
 program
   .command("publish")
-  .description("Build, hash, and push a new OTA release")
+  .description("Build, hash, and push a new OTA release to the Sphegatti server")
   .option("-p, --platform <platform>", "Target platform (android|ios)", "android")
   .option("-c, --channel <channel>", "Release channel", "production")
   .option("--entry-file <file>", "React Native entry file", "index.js")
   .option("--runtime-version <version>", "Override runtimeVersion from config")
-  .action((opts: { platform: string; channel: string; entryFile: string; runtimeVersion?: string }) =>
-    publishCommand(opts).catch((e: Error) => { console.error(e.message); process.exit(1); })
+  .option("--api-key <key>", "Sphegatti API key (overrides publish.apiKey in config)")
+  .option("--server-url <url>", "Override server URL (defaults to https://sphegatti.onrender.com)")
+  .action(
+    (opts: {
+      platform: string;
+      channel: string;
+      entryFile: string;
+      runtimeVersion?: string;
+      apiKey?: string;
+      serverUrl?: string;
+    }) =>
+      publishCommand(opts).catch((e: Error) => {
+        console.error(e.message);
+        process.exit(1);
+      })
   );
 
 program
