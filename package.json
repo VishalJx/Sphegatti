@@ -18,6 +18,8 @@
   },
   "files": [
     "dist",
+    "client.js",
+    "client.d.ts",
     "README.md"
   ],
   "peerDependencies": {
