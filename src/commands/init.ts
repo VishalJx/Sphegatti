@@ -89,32 +89,14 @@ function tryWireAndroid(cwd: string): boolean {
     console.log("  OtaPackage.kt already exists, skipped.");
   }
 
-  // Patch MainApplication.kt — step 1: register OtaPackage
+  // Patch MainApplication.kt
+  // Strategy: try to replace the whole reactHost block first (handles OtaPackage + jsBundleFilePath
+  // in one shot). Only fall back to the OtaPackage-only patch if the full replacement can't match.
   let mainAppWorking = mainAppSrc;
-  if (mainAppSrc.includes("OtaPackage()")) {
-    console.log("  OtaPackage already registered in MainApplication.kt, skipped.");
-  } else {
-    const patched = mainAppSrc.replace(
-      /PackageList\(this\)\.packages(?:\.apply\s*\{)?/,
-      "PackageList(this).packages.apply {\n          add(OtaPackage())\n        "
-    );
 
-    if (patched === mainAppSrc) {
-      console.log(
-        "⚠ Could not auto-patch MainApplication.kt — add manually:\n" +
-        "     PackageList(this).packages.apply { add(OtaPackage()) }"
-      );
-    } else {
-      mainAppWorking = patched;
-      console.log("✓ Registered OtaPackage in MainApplication.kt");
-    }
-  }
-
-  // Patch MainApplication.kt — step 2: wire jsBundleFilePath for OTA bundle loading
   if (mainAppWorking.includes("jsBundleFilePath")) {
-    console.log("  jsBundleFilePath already present in MainApplication.kt, skipped.");
+    console.log("  MainApplication.kt already patched, skipped.");
   } else {
-    // Replace `get() = getDefaultReactHost(...)` with a `by lazy` block that reads SharedPreferences
     const lazyBlock = `by lazy {
     val prefs = getSharedPreferences("sphegatti_ota", android.content.Context.MODE_PRIVATE)
     val savedPath = prefs.getString("bundle_path", null)
@@ -126,33 +108,35 @@ function tryWireAndroid(cwd: string): boolean {
     )
   }`;
 
-    // Try to replace `get() = getDefaultReactHost(applicationContext, PackageList(this).packages)`
-    const patchedLazy = mainAppWorking.replace(
-      /get\(\)\s*=\s*getDefaultReactHost\([^)]*\)/,
+    // Match `get() = getDefaultReactHost(...)` — the standard RN 0.76 form.
+    // We use [\s\S]*? so the closing ) can span a multiline apply block.
+    const fullPatch = mainAppWorking.replace(
+      /get\(\)\s*=\s*getDefaultReactHost\([\s\S]*?\)\s*$/m,
       lazyBlock
     );
 
-    // Also handle `by lazy { getDefaultReactHost(...) }` form (already lazy but no jsBundleFilePath)
-    const patchedExisting = patchedLazy === mainAppWorking
-      ? mainAppWorking.replace(
-          /by lazy \{\s*\n?\s*getDefaultReactHost\([^)]*\)\s*\n?\s*\}/,
-          lazyBlock
-        )
-      : patchedLazy;
-
-    if (patchedExisting === mainAppWorking) {
-      console.log(
-        "⚠ Could not auto-patch reactHost — add jsBundleFilePath manually.\n" +
-        "  See: https://sphegatti.com/docs#main-application"
+    if (fullPatch !== mainAppWorking) {
+      mainAppWorking = fullPatch;
+      console.log("✓ Patched MainApplication.kt (OtaPackage + jsBundleFilePath)");
+    } else if (!mainAppWorking.includes("OtaPackage()")) {
+      // Full patch couldn't match — at minimum register OtaPackage
+      const pkgPatch = mainAppWorking.replace(
+        /PackageList\(this\)\.packages/,
+        "PackageList(this).packages.apply { add(OtaPackage()) }"
       );
-    } else {
-      mainAppWorking = patchedExisting;
-      console.log("✓ Patched reactHost to load OTA bundle via jsBundleFilePath");
+      if (pkgPatch !== mainAppWorking) {
+        mainAppWorking = pkgPatch;
+        console.log("✓ Registered OtaPackage in MainApplication.kt");
+        console.log("⚠ Could not add jsBundleFilePath automatically — add it manually.");
+        console.log("  See: https://sphegatti.onrender.com/docs#main-application");
+      } else {
+        console.log("⚠ Could not auto-patch MainApplication.kt — edit it manually.");
+        console.log("  See: https://sphegatti.onrender.com/docs#main-application");
+      }
     }
   }
 
   if (mainAppWorking !== mainAppSrc) {
-    // Ensure OtaPackage import is present
     const withImport = mainAppWorking.includes(`${packageName}.OtaPackage`)
       ? mainAppWorking
       : mainAppWorking.replace(/^(import )/m, `import ${packageName}.OtaPackage\n$1`);
