@@ -46,7 +46,28 @@ You choose storage when you register your app. No code change required.
 npm install --save-dev sphegatti
 ```
 
-### 2. Add the Android native module
+### 2. Wire up the Android native module
+
+Run `npx ota init` from your React Native project root:
+
+```bash
+npx ota init
+```
+
+If an `android/` folder is detected, `init` does everything for you:
+
+- Creates `OtaModule.kt` with the correct package name
+- Creates `OtaPackage.kt` with the correct package name
+- Registers `OtaPackage` in `MainApplication.kt`
+
+Then do a full native rebuild:
+
+```bash
+npm run android
+```
+
+<details>
+<summary>No android/ folder? Expand for manual steps</summary>
 
 Create two files in `android/app/src/main/java/com/<yourpackage>/`.
 
@@ -149,10 +170,7 @@ override val reactHost: ReactHost by lazy {
 }
 ```
 
-After editing any Kotlin file, do a full native rebuild:
-```bash
-npm run android
-```
+</details>
 
 ### 3. Publish a release
 
