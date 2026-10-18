@@ -1,7 +1,5 @@
 import { NativeModules } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const UPDATE_ID_KEY = 'sphegatti_update_id';
 const TAG = '[Sphegatti]';
 
 export type CheckForUpdateOptions = {
@@ -25,7 +23,20 @@ export async function checkForUpdate(opts: CheckForUpdateOptions): Promise<Updat
   } = opts;
 
   try {
-    const currentUpdateId = (await AsyncStorage.getItem(UPDATE_ID_KEY)) ?? 'base';
+    const { OtaModule } = NativeModules as {
+      OtaModule?: {
+        downloadAndActivate(url: string): Promise<string>;
+        getUpdateId(): Promise<string>;
+        setUpdateId(id: string): Promise<void>;
+      };
+    };
+
+    if (!OtaModule) {
+      console.log(`${TAG} OtaModule not found`);
+      return { status: 'error', message: 'OtaModule not found. Did you run npx ota init?' };
+    }
+
+    const currentUpdateId = await OtaModule.getUpdateId();
     console.log(`${TAG} checking — currentUpdateId: ${currentUpdateId}`);
 
     const params = new URLSearchParams({
@@ -51,20 +62,11 @@ export async function checkForUpdate(opts: CheckForUpdateOptions): Promise<Updat
 
     if (!data.updateAvailable) return { status: 'up-to-date' };
 
-    const { OtaModule } = NativeModules as {
-      OtaModule?: { downloadAndActivate(url: string): Promise<string> };
-    };
-
-    if (!OtaModule) {
-      console.log(`${TAG} OtaModule not found`);
-      return { status: 'error', message: 'OtaModule not found. Did you run npx ota init?' };
-    }
-
     console.log(`${TAG} downloading: ${data.bundleUrl}`);
     const nativeResult = await OtaModule.downloadAndActivate(data.bundleUrl!);
     console.log(`${TAG} native result: ${nativeResult}`);
 
-    await AsyncStorage.setItem(UPDATE_ID_KEY, data.updateId!);
+    await OtaModule.setUpdateId(data.updateId!);
     console.log(`${TAG} saved updateId: ${data.updateId}`);
     return { status: 'updated', updateId: data.updateId! };
   } catch (e) {

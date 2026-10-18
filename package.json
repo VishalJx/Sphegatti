@@ -23,15 +23,9 @@
     "README.md"
   ],
   "peerDependencies": {
-    "@react-native-async-storage/async-storage": ">=1.0.0"
+    "react-native": ">=0.70.0"
   },
   "peerDependenciesMeta": {
-    "@react-native-async-storage/async-storage": {
-      "optional": true
-    },
-    "react": {
-      "optional": true
-    },
     "react-native": {
       "optional": true
     }
@@ -49,7 +43,6 @@
     "express": "^5.3.0"
   },
   "devDependencies": {
-    "@react-native-async-storage/async-storage": "^3.1.1",
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.5",
     "tsx": "^4.23.15",

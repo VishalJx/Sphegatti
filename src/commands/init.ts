@@ -218,6 +218,22 @@ class OtaModule(
     override fun getName() = "OtaModule"
 
     @ReactMethod
+    fun getUpdateId(promise: Promise) {
+        val id = context.getSharedPreferences("sphegatti_ota", Context.MODE_PRIVATE)
+            .getString("current_update_id", "base") ?: "base"
+        promise.resolve(id)
+    }
+
+    @ReactMethod
+    fun setUpdateId(updateId: String, promise: Promise) {
+        context.getSharedPreferences("sphegatti_ota", Context.MODE_PRIVATE)
+            .edit()
+            .putString("current_update_id", updateId)
+            .apply()
+        promise.resolve(null)
+    }
+
+    @ReactMethod
     fun downloadAndActivate(bundleUrl: String, promise: Promise) {
         Thread {
             try {
