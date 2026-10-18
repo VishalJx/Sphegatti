@@ -61,7 +61,7 @@ export function createServer(storage: StorageConnector, port = 4000) {
 
   // ── Auth routes ───────────────────────────────────────────────────────────
 
-  app.post("/api/register", (req, res) => {
+  app.post("/api/register", async (req, res) => {
     if (!checkRateLimit(clientIp(req))) {
       return res.status(429).json({ error: "Too many attempts. Try again in 15 minutes." });
     }
@@ -78,13 +78,13 @@ export function createServer(storage: StorageConnector, port = 4000) {
       return res.status(400).json({ error: "Password must be at least 8 characters" });
     }
 
-    const result = registerUser(email, password);
+    const result = await registerUser(email, password);
     if ("error" in result) return res.status(400).json({ error: result.error });
 
     return res.status(201).json({ email: result.user.email, apiKey: result.user.apiKey });
   });
 
-  app.post("/api/login", (req, res) => {
+  app.post("/api/login", async (req, res) => {
     if (!checkRateLimit(clientIp(req))) {
       return res.status(429).json({ error: "Too many attempts. Try again in 15 minutes." });
     }
@@ -95,7 +95,7 @@ export function createServer(storage: StorageConnector, port = 4000) {
       return res.status(400).json({ error: "email and password are required" });
     }
 
-    const result = loginUser(email, password);
+    const result = await loginUser(email, password);
     if ("error" in result) {
       // Same delay as a found-but-wrong-password to prevent user enumeration
       return res.status(401).json({ error: result.error });
@@ -181,7 +181,7 @@ export function createServer(storage: StorageConnector, port = 4000) {
     express.raw({ type: "application/octet-stream", limit: "100mb" }),
     async (req, res) => {
       const key = req.get("x-api-key") ?? "";
-      if (!validateApiKey(key)) {
+      if (!(await validateApiKey(key))) {
         return res.status(401).json({ error: "Invalid or missing API key" });
       }
 

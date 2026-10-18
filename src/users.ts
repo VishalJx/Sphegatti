@@ -12,18 +12,49 @@ type User = {
 
 export type UserPublic = { id: string; email: string; apiKey: string };
 
-const USERS_FILE = path.resolve(__dirname, "../users.json");
+const LOCAL_USERS_FILE = path.resolve(__dirname, "../users.json");
 
-function load(): User[] {
+function usersS3Key(): string {
+  return `${process.env.S3_KEY_PREFIX ?? "sphegatti/"}users.json`;
+}
+
+async function loadUsers(): Promise<User[]> {
+  if (process.env.S3_BUCKET) {
+    try {
+      const { S3Client, GetObjectCommand } = await import("@aws-sdk/client-s3");
+      const s3 = new S3Client({ region: process.env.S3_REGION ?? "us-east-1" });
+      const res = await s3.send(
+        new GetObjectCommand({ Bucket: process.env.S3_BUCKET, Key: usersS3Key() })
+      );
+      const body = await (res.Body as { transformToString(): Promise<string> }).transformToString();
+      return JSON.parse(body) as User[];
+    } catch (e: unknown) {
+      if ((e as { name?: string }).name === "NoSuchKey") return [];
+      throw e;
+    }
+  }
   try {
-    return JSON.parse(fs.readFileSync(USERS_FILE, "utf-8")) as User[];
+    return JSON.parse(fs.readFileSync(LOCAL_USERS_FILE, "utf-8")) as User[];
   } catch {
     return [];
   }
 }
 
-function save(users: User[]): void {
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), "utf-8");
+async function saveUsers(users: User[]): Promise<void> {
+  if (process.env.S3_BUCKET) {
+    const { S3Client, PutObjectCommand } = await import("@aws-sdk/client-s3");
+    const s3 = new S3Client({ region: process.env.S3_REGION ?? "us-east-1" });
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: process.env.S3_BUCKET,
+        Key: usersS3Key(),
+        Body: JSON.stringify(users, null, 2),
+        ContentType: "application/json",
+      })
+    );
+    return;
+  }
+  fs.writeFileSync(LOCAL_USERS_FILE, JSON.stringify(users, null, 2), "utf-8");
 }
 
 function hashPassword(password: string): string {
@@ -43,14 +74,14 @@ function verifyPassword(password: string, stored: string): boolean {
   }
 }
 
-export function registerUser(
+export async function registerUser(
   email: string,
   password: string
-): { user: UserPublic } | { error: string } {
+): Promise<{ user: UserPublic } | { error: string }> {
   if (!email || !password) return { error: "Email and password are required" };
   if (password.length < 8) return { error: "Password must be at least 8 characters" };
 
-  const users = load();
+  const users = await loadUsers();
   if (users.some((u) => u.email.toLowerCase() === email.toLowerCase().trim())) {
     return { error: "Email already registered" };
   }
@@ -63,17 +94,17 @@ export function registerUser(
     createdAt: new Date().toISOString(),
   };
 
-  save([...users, user]);
+  await saveUsers([...users, user]);
   return { user: { id: user.id, email: user.email, apiKey: user.apiKey } };
 }
 
-export function loginUser(
+export async function loginUser(
   email: string,
   password: string
-): { user: UserPublic } | { error: string } {
+): Promise<{ user: UserPublic } | { error: string }> {
   if (!email || !password) return { error: "Email and password are required" };
 
-  const users = load();
+  const users = await loadUsers();
   const user = users.find((u) => u.email.toLowerCase() === email.toLowerCase().trim());
   if (!user || !verifyPassword(password, user.passwordHash)) {
     return { error: "Invalid email or password" };
@@ -82,10 +113,10 @@ export function loginUser(
   return { user: { id: user.id, email: user.email, apiKey: user.apiKey } };
 }
 
-export function validateApiKey(apiKey: string): boolean {
+export async function validateApiKey(apiKey: string): Promise<boolean> {
   if (!apiKey) return false;
-  const users = load();
-  if (users.some((u) => u.apiKey === apiKey)) return true;
-  // fallback: env var master key for initial setup before any users register
-  return !!process.env.SPHEGATTI_API_KEY && apiKey === process.env.SPHEGATTI_API_KEY;
+  // Fast-path: master key from env (no S3 read needed)
+  if (process.env.SPHEGATTI_API_KEY && apiKey === process.env.SPHEGATTI_API_KEY) return true;
+  const users = await loadUsers();
+  return users.some((u) => u.apiKey === apiKey);
 }
