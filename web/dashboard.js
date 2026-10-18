@@ -22,6 +22,9 @@
   var inlineKey = document.getElementById("inlineKey");
   inlineKey.textContent = apiKey;
 
+  var inlineKey2 = document.getElementById("inlineKey2");
+  inlineKey2.textContent = apiKey;
+
   document.getElementById("revealBtn").addEventListener("click", function () {
     revealed = !revealed;
     display.textContent = revealed ? apiKey : MASKED;

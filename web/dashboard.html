@@ -36,38 +36,42 @@
         <h2>Quick setup</h2>
 
         <div class="step-code">
-          <div class="step-label">1. Install</div>
-          <pre><code>npm install sphegatti</code></pre>
+          <div class="step-label">1. Install &amp; wire native module</div>
+          <pre><code>npm install sphegatti
+npx ota init
+npx react-native run-android   # one-time native build</code></pre>
         </div>
 
         <div class="step-code">
-          <div class="step-label">2. Create <code>ota.config.js</code> (or run <code>npx ota init</code>)</div>
+          <div class="step-label">2. <code>ota.config.js</code> (created by <code>npx ota init</code>)</div>
           <pre><code>module.exports = {
   appId: 'your-app',
   runtimeVersion: '1',
   publish: {
     serverUrl: 'https://sphegatti.onrender.com',
-    apiKey: '<span id="inlineKey" class="highlight-key">YOUR_API_KEY</span>',
+    apiKey: process.env.SPHEGATTI_API_KEY || '',
   },
 };</code></pre>
+          <p class="step-note">Set <code>SPHEGATTI_API_KEY=<span id="inlineKey" class="highlight-key">YOUR_API_KEY</span></code> in your environment — never commit the key directly.</p>
         </div>
 
         <div class="step-code">
-          <div class="step-label">3. Publish an update</div>
-          <pre><code>npx ota publish --platform android --channel production</code></pre>
+          <div class="step-label">3. Check for updates in your app</div>
+          <pre><code>import { checkForUpdate } from 'sphegatti/client';
+import { useEffect } from 'react';
+
+// In your root component
+useEffect(() => {
+  checkForUpdate({ appId: 'your-app' });
+}, []);</code></pre>
+          <p class="step-note">Handles fetching, downloading, and restarting automatically. No manual fetch or native calls needed.</p>
         </div>
 
         <div class="step-code">
-          <div class="step-label">4. Check for updates in your app (React Native)</div>
-          <pre><code>import { NativeModules } from 'react-native';
-const { OtaModule } = NativeModules;
-
-const res = await fetch(
-  'https://sphegatti.onrender.com/updates/check?' +
-  new URLSearchParams({ appId, platform, runtimeVersion, channel, currentUpdateId })
-);
-const { updateAvailable, bundleUrl } = await res.json();
-if (updateAvailable) await OtaModule.downloadAndActivate(bundleUrl);</code></pre>
+          <div class="step-label">4. Publish an update</div>
+          <pre><code>export SPHEGATTI_API_KEY=<span id="inlineKey2" class="highlight-key">YOUR_API_KEY</span>
+npx ota publish</code></pre>
+          <p class="step-note">Users receive the update on their next app open. No Play Store review needed.</p>
         </div>
       </div>
     </div>
