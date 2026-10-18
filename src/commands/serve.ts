@@ -1,6 +1,6 @@
-import { loadConfig } from "../config.js";
-import { createStorageConnector } from "../storage/factory.js";
-import { createServer } from "../server.js";
+import { loadConfig } from "../config";
+import { createStorageConnector } from "../storage/factory";
+import { createServer } from "../server";
 
 export async function serveCommand() {
   const config = loadConfig();

@@ -3,9 +3,9 @@ import fs from "node:fs";
 import os from "node:os";
 import { execSync } from "node:child_process";
 import crypto from "node:crypto";
-import { loadConfig } from "../config.js";
-import { createStorageConnector } from "../storage/factory.js";
-import type { Release } from "../storage/types.js";
+import { loadConfig } from "../config";
+import { createStorageConnector } from "../storage/factory";
+import type { Release } from "../storage/types";
 
 export type PublishOptions = {
   platform: string;

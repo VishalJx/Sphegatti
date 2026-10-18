@@ -1,5 +1,5 @@
-import type { Release, StorageConnector } from "./types.js";
-import type { S3StorageConfig } from "../config.js";
+import type { Release, StorageConnector } from "./types";
+import type { S3StorageConfig } from "../config";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type S3Client = any;

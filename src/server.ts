@@ -1,6 +1,6 @@
 import express from "express";
 import crypto from "node:crypto";
-import type { StorageConnector } from "./storage/types.js";
+import type { StorageConnector } from "./storage/types";
 
 const sha256Cache = new Map<string, string>();
 

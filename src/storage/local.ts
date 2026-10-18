@@ -1,6 +1,6 @@
 import path from "node:path";
 import fs from "node:fs";
-import type { Release, StorageConnector } from "./types.js";
+import type { Release, StorageConnector } from "./types";
 
 export class LocalStorageConnector implements StorageConnector {
   constructor(private readonly dir: string) {

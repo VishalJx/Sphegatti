@@ -1,8 +1,5 @@
 import path from "node:path";
 import fs from "node:fs";
-import { createRequire } from "node:module";
-
-const require = createRequire(import.meta.url);
 
 export type LocalStorageConfig = {
   type: "local";

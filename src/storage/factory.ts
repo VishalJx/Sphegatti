@@ -1,8 +1,8 @@
 import path from "node:path";
-import type { OtaConfig } from "../config.js";
-import type { StorageConnector } from "./types.js";
-import { LocalStorageConnector } from "./local.js";
-import { S3StorageConnector } from "./s3.js";
+import type { OtaConfig } from "../config";
+import type { StorageConnector } from "./types";
+import { LocalStorageConnector } from "./local";
+import { S3StorageConnector } from "./s3";
 
 export function createStorageConnector(config: OtaConfig): StorageConnector {
   const storageConfig = config.storage;

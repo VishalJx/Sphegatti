@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { initCommand } from "./commands/init.js";
-import { publishCommand } from "./commands/publish.js";
-import { serveCommand } from "./commands/serve.js";
+import { initCommand } from "./commands/init";
+import { publishCommand } from "./commands/publish";
+import { serveCommand } from "./commands/serve";
 
 const program = new Command();
 
