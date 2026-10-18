@@ -13,7 +13,9 @@ export async function initCommand() {
   let appId = "my-app";
   const pkgPath = path.join(cwd, "package.json");
   if (fs.existsSync(pkgPath)) {
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8")) as { name?: string };
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8")) as {
+      name?: string;
+    };
     if (pkg.name) appId = pkg.name;
   }
 
@@ -32,19 +34,15 @@ module.exports = {
 `;
 
   fs.writeFileSync(configPath, config);
-
   console.log("✓ Created ota.config.js");
   console.log("");
-  console.log("─── Android native integration ─────────────────────────────────");
-  console.log("");
-  console.log("1. Add OtaModule.kt to android/app/src/main/java/<pkg>/");
-  console.log("2. Add OtaPackage.kt to android/app/src/main/java/<pkg>/");
-  console.log("3. Register in MainApplication.kt:");
-  console.log("");
-  console.log("   PackageList(this).packages.apply {");
-  console.log("     add(OtaPackage())");
-  console.log("   }");
-  console.log("");
+
+  const androidResult = tryWireAndroid(cwd);
+
+  if (!androidResult) {
+    printManualInstructions();
+  }
+
   console.log("─── JS usage ───────────────────────────────────────────────────");
   console.log("");
   console.log("   import { NativeModules } from 'react-native';");
@@ -56,4 +54,188 @@ module.exports = {
   console.log("   export SPHEGATTI_API_KEY=<your-key>");
   console.log("   npx ota publish --platform android --channel production");
   console.log("");
+}
+
+function tryWireAndroid(cwd: string): boolean {
+  const javaRoot = path.join(cwd, "android", "app", "src", "main", "java");
+  if (!fs.existsSync(javaRoot)) return false;
+
+  // Find MainApplication.kt by walking the java root
+  const mainAppPath = findFile(javaRoot, "MainApplication.kt");
+  if (!mainAppPath) return false;
+
+  const mainAppSrc = fs.readFileSync(mainAppPath, "utf-8");
+  const packageMatch = /^package\s+([\w.]+)/m.exec(mainAppSrc);
+  if (!packageMatch) return false;
+
+  const packageName = packageMatch[1];
+  const packageDir = path.dirname(mainAppPath);
+
+  // Write OtaModule.kt
+  const otaModulePath = path.join(packageDir, "OtaModule.kt");
+  if (!fs.existsSync(otaModulePath)) {
+    fs.writeFileSync(otaModulePath, otaModuleContent(packageName));
+    console.log(`✓ Created android/.../OtaModule.kt  (package ${packageName})`);
+  } else {
+    console.log("  OtaModule.kt already exists, skipped.");
+  }
+
+  // Write OtaPackage.kt
+  const otaPackagePath = path.join(packageDir, "OtaPackage.kt");
+  if (!fs.existsSync(otaPackagePath)) {
+    fs.writeFileSync(otaPackagePath, otaPackageContent(packageName));
+    console.log(`✓ Created android/.../OtaPackage.kt  (package ${packageName})`);
+  } else {
+    console.log("  OtaPackage.kt already exists, skipped.");
+  }
+
+  // Patch MainApplication.kt
+  if (mainAppSrc.includes("OtaPackage()")) {
+    console.log("  OtaPackage already registered in MainApplication.kt, skipped.");
+  } else {
+    const patched = mainAppSrc.replace(
+      /PackageList\(this\)\.packages\.apply\s*\{/,
+      "PackageList(this).packages.apply {\n          add(OtaPackage())"
+    );
+
+    if (patched === mainAppSrc) {
+      console.log(
+        "⚠ Could not auto-patch MainApplication.kt — add manually:\n" +
+        "     PackageList(this).packages.apply { add(OtaPackage()) }"
+      );
+    } else {
+      // Ensure OtaPackage import is present — insert before the first existing import
+      const withImport = patched.includes("import")
+        ? patched.replace(
+            /^(import )/m,
+            `import ${packageName}.OtaPackage\n$1`
+          )
+        : patched;
+      fs.writeFileSync(mainAppPath, withImport);
+      console.log("✓ Registered OtaPackage in MainApplication.kt");
+    }
+  }
+
+  console.log("");
+  console.log(
+    "  Run `npm run android` (or `npx react-native run-android`) to rebuild with the native module."
+  );
+  console.log("");
+  return true;
+}
+
+function findFile(dir: string, name: string): string | null {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      const found = findFile(full, name);
+      if (found) return found;
+    } else if (entry.name === name) {
+      return full;
+    }
+  }
+  return null;
+}
+
+function printManualInstructions() {
+  console.log("─── Android native integration ─────────────────────────────────");
+  console.log("");
+  console.log(
+    "  No android/ folder found. Create these files in\n" +
+    "  android/app/src/main/java/com/<yourpackage>/\n"
+  );
+  console.log("── OtaModule.kt ────────────────────────────────────────────────");
+  console.log(otaModuleContent("com.<yourpackage>"));
+  console.log("── OtaPackage.kt ───────────────────────────────────────────────");
+  console.log(otaPackageContent("com.<yourpackage>"));
+  console.log("── MainApplication.kt (add inside packages.apply block) ────────");
+  console.log("   add(OtaPackage())");
+  console.log("");
+}
+
+function otaModuleContent(packageName: string): string {
+  return `package ${packageName}
+
+import com.facebook.react.ReactApplication
+import com.facebook.react.bridge.*
+import com.facebook.react.module.annotations.ReactModule
+import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
+
+@ReactModule(name = "OtaModule")
+class OtaModule(
+    private val context: ReactApplicationContext
+) : ReactContextBaseJavaModule(context) {
+
+    override fun getName() = "OtaModule"
+
+    @ReactMethod
+    fun downloadAndActivate(bundleUrl: String, promise: Promise) {
+        Thread {
+            try {
+                val connection = URL(bundleUrl).openConnection() as HttpURLConnection
+                connection.connectTimeout = 15000
+                connection.readTimeout = 30000
+                try {
+                    connection.connect()
+                    if (connection.responseCode !in 200..299) {
+                        throw Exception("Download failed: HTTP \${connection.responseCode}")
+                    }
+                    val otaDir = File(context.filesDir, "ota")
+                    if (!otaDir.exists() && !otaDir.mkdirs()) {
+                        throw Exception("Could not create OTA directory")
+                    }
+                    val tempFile = File(otaDir, "update.tmp")
+                    val bundleFile = File(otaDir, "index.android.bundle")
+                    connection.inputStream.use { input ->
+                        tempFile.outputStream().use { output -> input.copyTo(output) }
+                    }
+                    if (tempFile.length() == 0L) {
+                        tempFile.delete()
+                        throw Exception("Downloaded bundle is empty")
+                    }
+                    if (bundleFile.exists() && !bundleFile.delete()) {
+                        tempFile.delete()
+                        throw Exception("Could not replace bundle")
+                    }
+                    if (!tempFile.renameTo(bundleFile)) {
+                        tempFile.delete()
+                        throw Exception("Could not save bundle")
+                    }
+                    val host = context.applicationContext as ReactApplication
+                    val reactHost = host.reactHost
+                        ?: throw Exception("ReactHost is not available")
+                    reactHost.setBundleSource(bundleFile.absolutePath)
+                    promise.resolve("Bundle downloaded; activation requested")
+                } finally {
+                    connection.disconnect()
+                }
+            } catch (e: Exception) {
+                promise.reject("OTA_UPDATE_FAILED", e)
+            }
+        }.start()
+    }
+}
+`;
+}
+
+function otaPackageContent(packageName: string): string {
+  return `package ${packageName}
+
+import com.facebook.react.ReactPackage
+import com.facebook.react.bridge.NativeModule
+import com.facebook.react.bridge.ReactApplicationContext
+import com.facebook.react.uimanager.ViewManager
+
+class OtaPackage : ReactPackage {
+    override fun createNativeModules(
+        context: ReactApplicationContext
+    ): List<NativeModule> = listOf(OtaModule(context))
+
+    override fun createViewManagers(
+        context: ReactApplicationContext
+    ): List<ViewManager<*, *>> = emptyList()
+}
+`;
 }
