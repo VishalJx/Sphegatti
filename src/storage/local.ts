@@ -12,19 +12,19 @@ export class LocalStorageConnector implements StorageConnector {
     platform: string,
     content: Buffer
   ): Promise<string> {
-    const bundleDir = path.join(this.dir, "bundles", releaseId);
-    fs.mkdirSync(bundleDir, { recursive: true });
-    const bundlePath = path.join(bundleDir, `index.${platform}.bundle`);
-    fs.writeFileSync(bundlePath, content);
-    return bundlePath;
+    const relativeKey = `bundles/${releaseId}/index.${platform}.bundle`;
+    const absolutePath = path.join(this.dir, relativeKey);
+    fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
+    fs.writeFileSync(absolutePath, content);
+    return relativeKey;
   }
 
   getBundlePublicUrl(_release: Release): null {
     return null;
   }
 
-  async readBundle(bundlePath: string): Promise<Buffer> {
-    return fs.readFileSync(bundlePath);
+  async readBundle(relativeKey: string): Promise<Buffer> {
+    return fs.readFileSync(path.join(this.dir, relativeKey));
   }
 
   async saveReleases(releases: Release[]): Promise<void> {
