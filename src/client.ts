@@ -53,10 +53,9 @@ export async function checkForUpdate(opts: CheckForUpdateOptions): Promise<Updat
       return { status: 'error', message: 'OtaModule not found. Did you run npx ota init?' };
     }
 
-    // Save before download — if the process is killed mid-flight, next launch won't retry
-    await AsyncStorage.setItem(UPDATE_ID_KEY, data.updateId!);
     await OtaModule.downloadAndActivate(data.bundleUrl!);
-    // Native module restarts the app — code below this won't run
+    // Native module restarts the app — this line runs only if activation resolved before restart
+    await AsyncStorage.setItem(UPDATE_ID_KEY, data.updateId!);
     return { status: 'updated', updateId: data.updateId! };
   } catch (e) {
     return { status: 'error', message: e instanceof Error ? e.message : String(e) };
