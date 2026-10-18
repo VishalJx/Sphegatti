@@ -2,6 +2,7 @@ import { NativeModules } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const UPDATE_ID_KEY = 'sphegatti_update_id';
+const TAG = '[Sphegatti]';
 
 export type CheckForUpdateOptions = {
   appId: string;
@@ -25,6 +26,7 @@ export async function checkForUpdate(opts: CheckForUpdateOptions): Promise<Updat
 
   try {
     const currentUpdateId = (await AsyncStorage.getItem(UPDATE_ID_KEY)) ?? 'base';
+    console.log(`${TAG} checking — currentUpdateId: ${currentUpdateId}`);
 
     const params = new URLSearchParams({
       appId,
@@ -35,13 +37,17 @@ export async function checkForUpdate(opts: CheckForUpdateOptions): Promise<Updat
     });
 
     const res = await fetch(`${serverUrl}/updates/check?${params}`);
-    if (!res.ok) return { status: 'error', message: `Server error: ${res.status}` };
+    if (!res.ok) {
+      console.log(`${TAG} server error: ${res.status}`);
+      return { status: 'error', message: `Server error: ${res.status}` };
+    }
 
     const data = (await res.json()) as {
       updateAvailable: boolean;
       updateId?: string;
       bundleUrl?: string;
     };
+    console.log(`${TAG} server response:`, JSON.stringify(data));
 
     if (!data.updateAvailable) return { status: 'up-to-date' };
 
@@ -50,14 +56,20 @@ export async function checkForUpdate(opts: CheckForUpdateOptions): Promise<Updat
     };
 
     if (!OtaModule) {
+      console.log(`${TAG} OtaModule not found`);
       return { status: 'error', message: 'OtaModule not found. Did you run npx ota init?' };
     }
 
-    await OtaModule.downloadAndActivate(data.bundleUrl!);
-    // Native module restarts the app — this line runs only if activation resolved before restart
+    console.log(`${TAG} downloading: ${data.bundleUrl}`);
+    const nativeResult = await OtaModule.downloadAndActivate(data.bundleUrl!);
+    console.log(`${TAG} native result: ${nativeResult}`);
+
     await AsyncStorage.setItem(UPDATE_ID_KEY, data.updateId!);
+    console.log(`${TAG} saved updateId: ${data.updateId}`);
     return { status: 'updated', updateId: data.updateId! };
   } catch (e) {
-    return { status: 'error', message: e instanceof Error ? e.message : String(e) };
+    const message = e instanceof Error ? e.message : String(e);
+    console.log(`${TAG} error: ${message}`);
+    return { status: 'error', message };
   }
 }
