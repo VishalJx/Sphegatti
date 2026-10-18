@@ -46,7 +46,9 @@ export class S3StorageConnector implements StorageConnector {
 
   getBundlePublicUrl(release: Release): string {
     if (this.config.cloudfrontDomain) {
-      return `${this.config.cloudfrontDomain.replace(/\/$/, "")}/${release.bundlePath}`;
+      const domain = this.config.cloudfrontDomain.replace(/\/$/, "");
+      const base = domain.startsWith("http") ? domain : `https://${domain}`;
+      return `${base}/${release.bundlePath}`;
     }
     return `https://${this.config.bucket}.s3.${this.config.region}.amazonaws.com/${release.bundlePath}`;
   }
