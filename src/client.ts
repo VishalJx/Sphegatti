@@ -1,6 +1,19 @@
-import { NativeModules } from 'react-native';
-
 const TAG = '[Sphegatti]';
+
+type OtaModuleType = {
+  downloadAndActivate(url: string): Promise<string>;
+  getUpdateId(): Promise<string>;
+  setUpdateId(id: string): Promise<void>;
+};
+
+function getOtaModule(): OtaModuleType | undefined {
+  // Dynamic require so TypeScript doesn't resolve 'react-native' at compile time.
+  // This lets the package build on server environments (Render, CI) that don't have RN installed.
+  // Metro resolves it correctly at runtime inside the customer's RN app.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { NativeModules } = require('react-native') as { NativeModules: Record<string, unknown> };
+  return NativeModules['OtaModule'] as OtaModuleType | undefined;
+}
 
 export type CheckForUpdateOptions = {
   appId: string;
@@ -23,13 +36,7 @@ export async function checkForUpdate(opts: CheckForUpdateOptions): Promise<Updat
   } = opts;
 
   try {
-    const { OtaModule } = NativeModules as {
-      OtaModule?: {
-        downloadAndActivate(url: string): Promise<string>;
-        getUpdateId(): Promise<string>;
-        setUpdateId(id: string): Promise<void>;
-      };
-    };
+    const OtaModule = getOtaModule();
 
     if (!OtaModule) {
       console.log(`${TAG} OtaModule not found`);
