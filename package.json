@@ -1,0 +1,46 @@
+{
+  "name": "sphegatti",
+  "version": "1.0.0",
+  "description": "Self-hostable OTA update platform for React Native Android",
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "ota": "./dist/cli.js"
+  },
+  "scripts": {
+    "dev:server": "tsx src/commands/serve.ts",
+    "build": "tsc --outDir dist",
+    "prepare": "npm run build",
+    "typecheck": "tsc --noEmit"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "ota",
+    "react-native",
+    "over-the-air",
+    "updates"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^12.1.0",
+    "express": "^5.3.0"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-s3": "^3.1152.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "@aws-sdk/client-s3": "^3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@aws-sdk/client-s3": {
+      "optional": true
+    }
+  }
+}
