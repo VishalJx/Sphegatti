@@ -5,8 +5,8 @@ dist/
 node_modules/
 
 # local OTA storage (bundles + releases.json created at runtime)
-storage/
-ota-storage/
+/storage/
+/ota-storage/
 
 # environment secrets
 .env
