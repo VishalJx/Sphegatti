@@ -3,6 +3,10 @@
   "version": "1.1.0",
   "description": "Self-hostable OTA update platform for React Native Android",
   "main": "./dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./client": "./dist/client.js"
+  },
   "bin": {
     "ota": "./dist/cli.js"
   },
@@ -16,6 +20,22 @@
     "dist",
     "README.md"
   ],
+  "peerDependencies": {
+    "@react-native-async-storage/async-storage": ">=1.0.0",
+    "react": ">=18.0.0",
+    "react-native": ">=0.73.0"
+  },
+  "peerDependenciesMeta": {
+    "@react-native-async-storage/async-storage": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-native": {
+      "optional": true
+    }
+  },
   "keywords": [
     "ota",
     "react-native",
@@ -29,8 +49,12 @@
     "express": "^5.3.0"
   },
   "devDependencies": {
+    "@react-native-async-storage/async-storage": "^3.1.1",
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "react": "^19.3.1",
+    "react-native": "^0.88.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   }
