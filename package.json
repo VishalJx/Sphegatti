@@ -10,7 +10,6 @@
   "scripts": {
     "dev:server": "tsx src/commands/serve.ts",
     "build": "tsc --outDir dist",
-    "prepare": "npm run build",
     "typecheck": "tsc --noEmit"
   },
   "files": [
