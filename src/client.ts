@@ -1,10 +1,7 @@
 import { NativeModules, DevSettings } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useState } from 'react';
 
 const UPDATE_ID_KEY = 'sphegatti_update_id';
-
-export type OtaStatus = 'checking' | 'up-to-date' | 'updated' | 'error';
 
 export type CheckForUpdateOptions = {
   appId: string;
@@ -13,7 +10,12 @@ export type CheckForUpdateOptions = {
   channel?: string;
 };
 
-export async function checkForUpdate(opts: CheckForUpdateOptions): Promise<OtaStatus> {
+export type UpdateResult =
+  | { status: 'up-to-date' }
+  | { status: 'updated'; updateId: string }
+  | { status: 'error'; message: string };
+
+export async function checkForUpdate(opts: CheckForUpdateOptions): Promise<UpdateResult> {
   const {
     appId,
     serverUrl = 'https://sphegatti.onrender.com',
@@ -21,49 +23,42 @@ export async function checkForUpdate(opts: CheckForUpdateOptions): Promise<OtaSt
     channel = 'production',
   } = opts;
 
-  const currentUpdateId = (await AsyncStorage.getItem(UPDATE_ID_KEY)) ?? 'base';
+  try {
+    const currentUpdateId = (await AsyncStorage.getItem(UPDATE_ID_KEY)) ?? 'base';
 
-  const params = new URLSearchParams({
-    appId,
-    platform: 'android',
-    runtimeVersion,
-    channel,
-    currentUpdateId,
-  });
+    const params = new URLSearchParams({
+      appId,
+      platform: 'android',
+      runtimeVersion,
+      channel,
+      currentUpdateId,
+    });
 
-  const res = await fetch(`${serverUrl}/updates/check?${params}`);
-  if (!res.ok) throw new Error(`Server error: ${res.status}`);
+    const res = await fetch(`${serverUrl}/updates/check?${params}`);
+    if (!res.ok) return { status: 'error', message: `Server error: ${res.status}` };
 
-  const data = (await res.json()) as {
-    updateAvailable: boolean;
-    updateId?: string;
-    bundleUrl?: string;
-  };
+    const data = (await res.json()) as {
+      updateAvailable: boolean;
+      updateId?: string;
+      bundleUrl?: string;
+    };
 
-  if (!data.updateAvailable) return 'up-to-date';
+    if (!data.updateAvailable) return { status: 'up-to-date' };
 
-  const { OtaModule } = NativeModules as {
-    OtaModule?: { downloadAndActivate(url: string): Promise<string> };
-  };
+    const { OtaModule } = NativeModules as {
+      OtaModule?: { downloadAndActivate(url: string): Promise<string> };
+    };
 
-  if (!OtaModule) throw new Error('OtaModule native module not found. Did you run npx ota init?');
+    if (!OtaModule) {
+      return { status: 'error', message: 'OtaModule not found. Did you run npx ota init?' };
+    }
 
-  await OtaModule.downloadAndActivate(data.bundleUrl!);
-  await AsyncStorage.setItem(UPDATE_ID_KEY, data.updateId!);
-  DevSettings.reload();
-  return 'updated';
-}
-
-export function useOtaUpdate(opts: CheckForUpdateOptions): OtaStatus {
-  const [status, setStatus] = useState<OtaStatus>('checking');
-
-  useEffect(() => {
-    checkForUpdate(opts)
-      .then(setStatus)
-      .catch(() => setStatus('error'));
-  // opts intentionally not in deps — called once on mount
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return status;
+    // Save before reload so the new launch sees the updated ID and skips re-downloading
+    await AsyncStorage.setItem(UPDATE_ID_KEY, data.updateId!);
+    await OtaModule.downloadAndActivate(data.bundleUrl!);
+    DevSettings.reload();
+    return { status: 'updated', updateId: data.updateId! };
+  } catch (e) {
+    return { status: 'error', message: e instanceof Error ? e.message : String(e) };
+  }
 }
