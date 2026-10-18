@@ -306,4 +306,4 @@ No code change is required. Sphegatti will use your bucket for all new releases.
 
 ## License
 
-MIT
+None. It's not open source. You can use it for free, but you cannot redistribute or modify it.
