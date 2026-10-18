@@ -9,6 +9,7 @@
   "scripts": {
     "dev:server": "tsx src/commands/serve.ts",
     "build": "tsc --outDir dist",
+    "start": "node dist/cli.js serve",
     "typecheck": "tsc --noEmit"
   },
   "files": [
